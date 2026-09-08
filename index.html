@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ローグライクタイピング：Infration Blade</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="game-container">
+    <div id="boss-warning">⚠️ BOSS WARNING ⚠️</div>
+    <div id="effect-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:80; overflow:hidden;"></div>
+
+    <!-- 1. ロビー -->
+    <div id="lobby-screen" class="screen active">
+        <section class="lobby-hero">
+            <div class="lobby-eyebrow">ONLINE TERMINAL // SEASON 01</div>
+            <h1>ROGUELIKE TYPING TACTICS</h1>
+            <p>INFLATION BLADE — 指先で戦術を組み、インフレを突破せよ。</p>
+        </section>
+
+        <div class="lobby-grid">
+            <article class="lobby-player-card">
+                <div class="lobby-card-label">OPERATOR PROFILE</div>
+                <div class="lobby-rank" id="lobby-rank">RANK 1</div>
+                <div class="lobby-score"><span>BEST SCORE</span><strong id="top-high-score">0 PTS</strong></div>
+                <div class="lobby-score"><span>TOTAL EXP</span><strong id="top-total-exp">総経験値: 0 EXP</strong></div>
+                <div class="lobby-score"><span>NEXT RANK</span><strong id="top-next-exp">次のランクまであと: 0 EXP</strong></div>
+                <div class="lobby-points" id="top-base-points">ベースポイント: 0 PT</div>
+            </article>
+
+            <article class="lobby-mission-card">
+                <div class="lobby-card-label">NEXT DEPLOYMENT</div>
+                <h2>TYPE // SURVIVE // EVOLVE</h2>
+                <p>ゲームモード・難易度・アクティブスキルを選んで出撃。戦闘中の成長とスタイルカードで戦術を構築する。</p>
+                <button class="lobby-play-btn" type="button" onclick="enterGameSetup()">▶ ミッションを開始</button>
+            </article>
+        </div>
+
+        <div class="lobby-shortcuts">
+            <button class="lobby-shortcut accent" type="button" onclick="openBaseUpgradeOverlay()"><span>⬡</span><b>ベースアップグレード</b><small>恒久強化・個別コア調律・カード解放</small></button>
+            <button class="lobby-shortcut" type="button" onclick="openRankingOverlay()"><span>♜</span><b>オンラインランキング</b><small>世界のタイピストと最高記録を競う</small></button>
+            <button class="lobby-shortcut" type="button" onclick="openProfileOverlay()"><span>⚙</span><b>プロフィール・接続設定</b><small>名前・UID・GASの接続先を確認</small></button>
+        </div>
+    </div>
+
+    <!-- 2. 出撃設定画面 -->
+    <div id="setup-screen" class="screen">
+        <div class="setup-header"><button class="back-lobby-btn" type="button" onclick="backToLobby()">← ロビーへ</button><h1>MISSION CONFIGURATION</h1></div>
+
+        <div class="user-status">
+            <div>現在のランク: <span id="top-rank">RANK 1</span></div>
+            <div>ベースアップグレードはロビーからいつでも確認できます</div>
+        </div>
+        
+        <div class="setup-section">
+            <h3>1. ゲームモード</h3>
+            <div class="grid-options modes">
+                <button class="btn-opt selected" onclick="setMode('en', this)">英単語</button>
+                <button class="btn-opt" onclick="setMode('ja', this)">日本語 (マルチ全対応)</button>
+            </div>
+        </div>
+
+        <div class="setup-section">
+            <h3>2. 難易度</h3>
+            <h3>難易度によって、攻撃までの猶予時間と最終スコアの倍率が変化する</h3>
+            <div class="grid-options">
+                <button class="btn-opt" onclick="setDifficulty('easy', this)">イージー  倍率x0.5<small>攻撃まで15s</small></button>
+                <button class="btn-opt selected" onclick="setDifficulty('normal', this)">ノーマル  倍率x1.0<small>攻撃まで5s</small></button>
+                <button class="btn-opt" onclick="setDifficulty('hard', this)">ハード  倍率x1.5<small>攻撃まで4s</small></button>
+                <button class="btn-opt" onclick="setDifficulty('lunatic', this)">ルナティック  倍率x2.5<small>攻撃まで3s</small></button>
+                <button class="btn-opt" onclick="setDifficulty('extra', this)">エクストラ  倍率x1.0<small>攻撃まで5s、250ウェーブの魔境</small></button>
+                <button class="btn-opt" onclick="setDifficulty('Phantasm', this)">ファンタズム  倍率x2.5<small>攻撃まで3s、250ウェーブの魔境</small></button>
+                <button class="btn-opt endless-option" onclick="setDifficulty('endless', this)">エンドレス  倍率x1.0<small>開始時1体、以後10秒ごとに侵攻。撃破で敵・侵攻速度が強化</small></button>
+            </div>
+        </div>
+
+        <div class="setup-section">
+            <h3>3. アクティブスキル選択</h3>
+            <h3>スキルは、TPが最大値の時にスペースかエンターを押して発動可能</h3>
+            <div class="grid-options" id="skill-options"></div>
+        </div>
+
+        <button class="start-btn" onclick="startGame()">バトル画面へ進む</button>
+    </div>
+
+    <!-- 3. バトル画面 -->
+    <div id="battle-screen" class="screen">
+        <div id="hud-top">
+            <div><strong>WAVE:</strong> <span id="hud-wave">1</span> / <span id="hud-max-wave">100</span> | <strong>LV:</strong> <span id="hud-lvl">1</span> <button id="core-cache-btn" class="core-cache-btn" type="button" onclick="openPendingLevelUps()" disabled>CORE CACHE: 0</button></div>
+            <div id="state-badge" style="font-weight:bold; text-transform:uppercase;">NORMAL STATE</div>
+            <div id="monitor">DPS: 0 | KPM: 0</div>
+        </div>
+
+        <div id="battle-field">
+            <div id="enemies-area"></div>
+            <div id="reserve-area" class="reserve-area" aria-live="polite"></div>
+
+            <div id="typing-area">
+                <div id="word-kanji"></div>
+                <div id="word-target"></div>
+                <input type="text" id="hidden-input" autocomplete="off">
+                <p style="font-size:0.75rem; color:#a0aec0; margin-top:12px;">※あらゆるタイピング癖に対応。全角フリーズガード機能付き</p>
+            </div>
+
+            <div id="player-panel">
+                <div>
+                    <h4 style="margin-bottom:8px; color:var(--accent-color); letter-spacing:1px;">PLAYER STABILITY</h4>
+                    <div class="bar-container"><div id="hp-bar" class="bar"></div><div class="bar-text">HP: <span id="txt-hp">100/100</span></div></div>
+                    <div class="bar-container"><div id="shield-bar" class="bar"></div><div class="bar-text">SHIELD: <span id="txt-shield">600/600</span></div></div>
+                    <div class="bar-container"><div id="exp-bar" class="bar"></div><div class="bar-text">NEXT LEVEL(NX): <span id="txt-exp">0%</span></div></div>
+                    <div id="style-badge">スタイル未装着 (10WAVEごとに獲得)</div>
+                </div>
+                <div>
+                    <div class="bar-container"><div id="fever-bar" class="bar"></div><div class="bar-text">FEVER LINK GAUGE</div></div>
+                    <div class="bar-container"><div id="tp-bar" class="bar"></div><div class="bar-text">TECHNICAL POINT (SPACE / ENTER)</div></div>
+                    <div id="active-skill-info" style="font-size:0.85rem; background:rgba(0,0,0,0.4); padding:10px; border-radius:6px; border:1px solid var(--border-color); min-height:56px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. カウントダウンレイヤー -->
+    <div id="countdown-overlay" class="full-overlay">
+        <div id="countdown-text">READY</div>
+        <div id="countdown-sub">PRESS [ SPACE ] OR [ ENTER ] TO START</div>
+    </div>
+
+    <!-- 4. 能力コア解放モーダル -->
+    <div id="lvlup-overlay" class="full-overlay">
+        <h2>★ LEVEL UP ★ 能力コア解放</h2>
+        <p id="lvlup-pending-info" style="color:#a0aec0; margin-bottom:15px;">全12種類の能力コアからランダムに3つがサルベージされました</p>
+        <div id="lvlup-choices" style="display: flex; flex-direction: column; gap: 15px; width: 80%; max-width: 550px; margin-top:20px;"></div>
+    </div>
+
+    <!-- 5. スタイルカード選択モーダル -->
+    <div id="style-overlay" class="full-overlay">
+        <h2 style="color:var(--fever-color)">❖ BONUS : STYLE SELECTION ❖</h2>
+        <p style="color:#a0aec0; margin-bottom: 5px;">新しい戦術スタイルを3つ探知しました。1つ選んで上書き装着してください。</p>
+        <p style="color:var(--accent-color); font-size:0.8rem; margin-bottom:15px;">※装着中、カード個別の他に各レアリティの共通ステータス強化が常時反映されます！</p>
+        <div class="card-container" id="style-card-options"></div>
+        <button class="start-btn" style="max-width: 400px; background: #334155; color: #fff; border: 1px solid #475569;" onclick="rejectStyleCard()">入れ替えない (代わりに経験値を大量獲得)</button>
+    </div>
+
+    <!-- 6. 最終リザルト画面モーダル -->
+    <div id="result-overlay" class="full-overlay" style="background: rgba(10,13,20,0.98);">
+        <h2 id="res-title" style="font-size: 2.5rem; margin-bottom: 5px;">TACTICAL RESULT</h2>
+        <p id="res-subtitle" style="color: var(--accent-color); font-size: 1.2rem; margin-bottom: 25px; font-weight: bold;"></p>
+        
+        <table class="res-table">
+            <tr><td style="color: #a0aec0;">到達記録</td><td id="res-wave" class="val">0 </td></tr>
+            <tr><td style="color: #a0aec0;">最高タイピング速度</td><td id="res-max-kpm" class="val" style="color: var(--fever-color);">0 KPM</td></tr>
+            <tr><td style="color: #a0aec0;">正確なタイプ / ミス</td><td id="res-keys" class="val">0 / 0</td></tr>
+            <tr><td style="color: #a0aec0;">タイピング精度 (手応え率)</td><td id="res-accuracy" class="val" style="color: var(--accent-color);">0.00%</td></tr>
+            <tr><td style="color: #a0aec0;">総与ダメージ</td><td id="res-total-dmg" class="val">0</td></tr>
+            <tr><td style="color: #a0aec0;">難易度ボーナス倍率</td><td id="res-diff-bonus" class="val">x1.0</td></tr>
+            <tr style="font-size: 1.6rem; color: var(--fever-color); border-bottom: none;"><td style="padding-top: 20px; font-weight: 900;">最終スコア</td><td id="res-score" class="val" style="padding-top: 20px; font-weight: 900; text-shadow: 0 0 15px rgba(255,157,0,0.5);">0 PTS</td></tr>
+            <div>ハイスコア: <span id="res-high-score">0 PTS</span></div>
+            <div>ユーザーランク: <span id="res-rank">RANK 1</span></div>
+            <div id="res-next-exp">次のランクまであと: 0 EXP</div>
+            <div id="res-online-status" class="result-online-status">ランキング送信待機中</div>
+        </table>
+        
+        <button class="start-btn" style="max-width: 320px;" onclick="location.reload()">タイトルに戻って再挑戦</button>
+    </div>
+
+    <!-- 7. ベースアップグレード -->
+    <div id="base-overlay" class="full-overlay hub-overlay">
+        <div class="hub-panel">
+            <button class="modal-close" type="button" onclick="closeHubOverlay('base-overlay')" aria-label="閉じる">×</button>
+            <h2>⬡ BASE UPGRADE TERMINAL</h2>
+            <p id="base-point-summary" class="hub-summary"></p>
+            <h3 class="hub-section-title">恒久ベース強化</h3>
+            <div id="base-upgrade-list" class="base-upgrade-list"></div>
+            <h3 class="hub-section-title">能力コア個別調律</h3>
+            <p class="hub-note">ゲーム中のレベルアップで得られる各能力コアを、個別に最大36%まで強化します。</p>
+            <div id="core-specialization-list" class="core-specialization-list"></div>
+            <h3 class="hub-section-title">スタイルカード解放 <span id="style-unlock-count"></span></h3>
+            <p class="hub-note">解放済みカードは、以後のスタイルカード抽選に追加されます。</p>
+            <div id="style-unlock-list" class="style-unlock-list"></div>
+        </div>
+    </div>
+
+    <!-- 8. オンラインランキング -->
+    <div id="ranking-overlay" class="full-overlay hub-overlay">
+        <div class="hub-panel ranking-panel">
+            <button class="modal-close" type="button" onclick="closeHubOverlay('ranking-overlay')" aria-label="閉じる">×</button>
+            <h2>♜ ONLINE RANKING</h2>
+            <p id="ranking-status" class="hub-summary">ランキングを読み込んでいます…</p>
+            <div class="ranking-scroll">
+                <table class="ranking-table">
+                    <thead><tr><th>#</th><th>ユーザー名</th><th>最高スコア</th><th>最高到達</th></tr></thead>
+                    <tbody id="ranking-body"></tbody>
+                </table>
+            </div>
+            <button class="utility-btn" type="button" onclick="loadOnlineRanking()">↻ 再読み込み</button>
+        </div>
+    </div>
+
+    <!-- 9. ユーザー・GAS接続設定 -->
+    <div id="profile-overlay" class="full-overlay hub-overlay">
+        <div class="hub-panel profile-panel">
+            <button class="modal-close" type="button" onclick="closeHubOverlay('profile-overlay')" aria-label="閉じる">×</button>
+            <h2>⚙ ONLINE PROFILE & CONNECTION</h2>
+            <label>ユーザー名<input id="profile-name" maxlength="20" placeholder="ランキングに表示する名前"></label>
+            <label>UID <span class="locked-label">LOCKED</span><input id="profile-uid" readonly aria-readonly="true"></label>
+            <label>GAS ウェブアプリ URL <span class="locked-label">LOCKED</span><input id="profile-endpoint" type="url" readonly aria-readonly="true"></label>
+            <p class="hub-note">UIDは初回起動時に発行され、GAS URLはゲームに固定されています。ここで変更できるのはユーザー名だけです。</p>
+            <button class="start-btn" type="button" onclick="saveOnlineProfile()">保存する</button>
+        </div>
+    </div>
+</div>
+
+    <script src="config.js"></script>
+    <script src="game.js"></script>
+    <script src="online.js"></script>
+</body>
+</html>
